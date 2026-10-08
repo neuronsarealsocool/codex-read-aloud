@@ -11,6 +11,10 @@ Commands:
 - `-Mode Status`: inspect settings and last recorded playback state.
 - `-Mode Voices`: list installed voices.
 - `-Mode Voice -Value 'Microsoft Zira Desktop'`: select an exact installed voice name.
+- `-Mode Engine -Value kokoro` / `-Mode Engine -Value windows`: select the installed offline engine.
+- `-Mode Voice -Value af_heart` or `bf_emma`: select Kokoro American Heart or British Emma and switch to Kokoro. Selecting a Windows voice switches back to Windows.
+
+Kokoro needs one-time setup using Python 3.12: `python ../../scripts/setup-kokoro.py`. Setup downloads a Python environment and checksum-verified model/voice files to `%LOCALAPPDATA%/CodexReadAloud/kokoro`; playback is offline and uses CPU. Run setup only when installation is requested. If Kokoro fails, the worker falls back to the selected Windows voice and records `kokoro-error.txt`; do not claim Kokoro played when fallback occurred. Status shows engine and selected Kokoro voice. Stop cancels synthesis and playback. All existing speed/progress controls work with both engines.
 - `-Mode Rate -Value 2`: speed from -10 to 10; zero is normal.
 - `-Mode Faster` / `-Mode Slower`: increase / decrease speed by one step, bounded at -10 and 10.
 - `-Mode Normal`: reset speed to zero.

@@ -13,6 +13,8 @@
     <button class="btn" type="button" data-action="status">Status</button>
     <button class="btn" type="button" data-action="progress-on">Progress on</button>
     <button class="btn" type="button" data-action="progress-off">Progress off</button>
+    <button class="btn" type="button" data-action="heart">Kokoro Heart</button>
+    <button class="btn" type="button" data-action="emma">Kokoro Emma</button>
   </div>
   <p class="text-small text-muted" aria-live="polite" data-feedback>Buttons send a command to this chat.</p>
 </div>
@@ -34,7 +36,9 @@
     voices: 'Use the Read Aloud plugin to list available reading voices.',
     status: 'Use the Read Aloud plugin to show automatic reading, progress narration, the selected voice, and speed.',
     'progress-on': 'Use the Read Aloud plugin to enable spoken narration of visible progress updates while working.',
-    'progress-off': 'Use the Read Aloud plugin to disable spoken progress narration while keeping final-answer reading enabled.'
+    'progress-off': 'Use the Read Aloud plugin to disable spoken progress narration while keeping final-answer reading enabled.',
+    heart: 'Use the Read Aloud plugin to select the Kokoro voice af_heart and engine kokoro.',
+    emma: 'Use the Read Aloud plugin to select the Kokoro British English voice bf_emma and engine kokoro.'
   };
   for (const button of buttons) {
     button.addEventListener('click', async () => {

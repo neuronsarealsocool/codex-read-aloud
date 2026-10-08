@@ -1,12 +1,12 @@
 {
   "name": "read-aloud",
-  "version": "1.2.0",
-  "description": "Read completed Codex answers aloud using offline Windows voices.",
+  "version": "1.3.0",
+  "description": "Read Codex answers and visible progress aloud using offline Windows or Kokoro voices.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Read Aloud",
-    "shortDescription": "Speak completed answers with Windows voices",
+    "shortDescription": "Offline speech with Windows and Kokoro voices",
     "category": "Productivity"
   }
 }

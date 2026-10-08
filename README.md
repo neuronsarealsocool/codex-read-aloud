@@ -21,6 +21,21 @@ If `codex` is not found, install or expose the Codex CLI on PATH first. Plugin s
 
 ## Features
 
+### Optional Kokoro neural voices (1.3)
+
+Kokoro runs completely offline after one-time setup. Install Python 3.12 and, from a clone of this repository, run:
+
+```powershell
+python plugins/read-aloud/scripts/setup-kokoro.py
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File plugins/read-aloud/scripts/reader.ps1 -Mode Engine -Value kokoro
+```
+
+Alternatively ask Codex to use the installed Read Aloud plugin's `scripts/setup-kokoro.py` with Python 3.12 and select the Kokoro engine. Setup downloads about 142 MB of checksum-verified model/voice files, plus Python packages, into `%LOCALAPPDATA%\CodexReadAloud\kokoro`. It does not bundle these files into the plugin repository. Python must remain installed because the local environment depends on it.
+
+The default Kokoro voice is **af_heart** (American English). Select **bf_emma** for British English using the Kokoro Emma button, or ask for all installed voices. Zira and David buttons switch back to Windows speech. Existing speed, Stop, automatic-reading, and progress controls work with either engine. Kokoro may take several seconds to load and generate the first audio; it uses CPU and speaks in short chunks. On failure it falls back to Windows and records `kokoro-error.txt`. An abrupt process termination may leave a transient error file.
+
+Upstream: [Kokoro ONNX](https://github.com/thewh1teagle/kokoro-onnx) (MIT wrapper, Apache-2.0 model weights). Its dependencies have their own licences, including eSpeak NG; they are installed separately by setup.
+
 - Automatically reads the final answer through the Stop lifecycle hook.
 - Narrates meaningful visible progress updates when the assistant calls the bundled Narrate command. This is best-effort; there is no commentary lifecycle hook.
 - Offers Read answer, Stop, Auto on/off, speed, voice, status, and Progress on/off controls.
@@ -86,6 +101,8 @@ npm test
 npm run test:speech
 ```
 
-The controls test uses installed Google Chrome via Playwright and a mocked Codex host bridge. The Windows speech test uses a separate temporary data directory, volume zero, and checks cleanup, completion, deduplication, stopping, settings, speed, and progress narration.
+The controls test covers all 15 buttons using installed Google Chrome via Playwright and a mocked Codex host bridge. The Windows speech test uses a separate temporary data directory, volume zero, and checks cleanup, completion, deduplication, stopping, settings, speed, and progress narration.
 
-Current version: **1.2.0**. Licensed under MIT; see [LICENSE](LICENSE).
+After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scripts/test-kokoro.py`. This generates American and British audio while denying Python network connections and checks real muted playback and cancellation with isolated settings. Tests leave their temporary directories for inspection.
+
+Current version: **1.3.0**. Licensed under MIT; see [LICENSE](LICENSE).

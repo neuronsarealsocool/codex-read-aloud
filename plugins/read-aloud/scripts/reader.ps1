@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Hook','Worker','On','Off','Stop','Status','Voices','Voice','Rate','Faster','Slower','Normal','ProgressOn','ProgressOff','Narrate','Controls','Preview','Test')]
+    [ValidateSet('Hook','Worker','On','Off','Stop','Status','Voices','Voice','Engine','Rate','Faster','Slower','Normal','ProgressOn','ProgressOff','Narrate','Controls','Preview','Test')]
     [string]$Mode = 'Status',
     [string]$Text = '',
     [string]$Value = '',
@@ -26,9 +26,11 @@ function Get-Settings {
     if (Test-Path -LiteralPath $configPath) {
         $loaded = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
         if (-not $loaded.PSObject.Properties['narrateProgress']) { $loaded | Add-Member -NotePropertyName narrateProgress -NotePropertyValue $true }
+        if (-not $loaded.PSObject.Properties['engine']) { $loaded | Add-Member -NotePropertyName engine -NotePropertyValue 'windows' }
+        if (-not $loaded.PSObject.Properties['kokoroVoice']) { $loaded | Add-Member -NotePropertyName kokoroVoice -NotePropertyValue 'af_heart' }
         return $loaded
     }
-    return [pscustomobject]@{enabled=$true; voice='Microsoft Zira Desktop'; rate=0; volume=100; skipCode=$true; maxCharacters=20000; narrateProgress=$true}
+    return [pscustomobject]@{enabled=$true; voice='Microsoft Zira Desktop'; rate=0; volume=100; skipCode=$true; maxCharacters=20000; narrateProgress=$true; engine='windows'; kokoroVoice='af_heart'}
 }
 function Get-SpokenText([string]$InputText, $Settings) {
     $result = $InputText
@@ -61,7 +63,7 @@ function Write-State([string]$State, [string]$Id = '') {
 function Queue-Speech([string]$SpeechText, $Settings, [string]$Id) {
     $requestId = [guid]::NewGuid().ToString('N')
     $requestPath = Join-Path $DataDir ($requestId + '.json')
-    Write-JsonFile $requestPath @{id=$requestId; text=$SpeechText; voice=$Settings.voice; rate=$Settings.rate; volume=$Settings.volume}
+    Write-JsonFile $requestPath @{id=$requestId; text=$SpeechText; voice=$Settings.voice; rate=$Settings.rate; volume=$Settings.volume; engine=$Settings.engine; kokoroVoice=$Settings.kokoroVoice}
     Write-JsonFile $latestPath @{id=$requestId; turn=$Id}
     Signal-Stop
     $exe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -104,6 +106,34 @@ try {
                 $latest = Get-Content -LiteralPath $latestPath -Raw -Encoding UTF8 | ConvertFrom-Json
                 if ($latest.id -ne $job.id -or -not (Get-Settings).enabled) { break }
                 [void]$event.Reset()
+                if ($job.engine -eq 'kokoro') {
+                    $python = Join-Path $DataDir 'kokoro\venv\Scripts\python.exe'
+                    $worker = Join-Path $PSScriptRoot 'kokoro-worker.py'
+                    $errorPath = Join-Path $DataDir ($job.id + '.stderr')
+                    $child = $null
+                    $cancelled = $false
+                    try {
+                        if (-not (Test-Path -LiteralPath $python)) { throw 'Kokoro is not installed; run setup-kokoro.py first.' }
+                        Write-State 'generating' $job.id
+                        $childArgs = '"' + $worker + '" --data-dir "' + $DataDir + '" --request "' + $Request + '"'
+                        $child = Start-Process -FilePath $python -ArgumentList $childArgs -WindowStyle Hidden -PassThru -RedirectStandardError $errorPath
+                        while (-not $child.HasExited) {
+                            $cancelled = $event.WaitOne(100)
+                            $current = Get-Content -LiteralPath $latestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                            if ($cancelled -or $current.id -ne $job.id) { $cancelled=$true; break }
+                        }
+                        if ($cancelled) { break }
+                        $child.WaitForExit()
+                        if ($child.ExitCode -ne 0) { throw ([IO.File]::ReadAllText($errorPath)) }
+                        break
+                    } catch {
+                        [IO.File]::WriteAllText((Join-Path $DataDir 'kokoro-error.txt'), ([DateTime]::UtcNow.ToString('o') + ' ' + $_.Exception.Message), $utf8)
+                        # Failed neural playback falls back to the selected Windows voice.
+                    } finally {
+                        if ($child) { if (-not $child.HasExited) { $child.Kill(); $child.WaitForExit() }; $child.Dispose() }
+                        if (Test-Path -LiteralPath $errorPath) { Remove-Item -LiteralPath $errorPath }
+                    }
+                }
                 Add-Type -AssemblyName System.Speech
                 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
                 if ($job.voice) { $synth.SelectVoice($job.voice) }
@@ -119,6 +149,7 @@ try {
                 }
                 Write-State 'idle' $job.id
             } finally {
+                if ($locked) { Write-State 'idle' }
                 if ($synth) { $synth.Dispose() }
                 if ($locked) { $mutex.ReleaseMutex() }
                 $mutex.Dispose()
@@ -140,15 +171,34 @@ try {
             "Settings: $configPath"
         }
         'Voices' {
+            $python = Join-Path $DataDir 'kokoro\venv\Scripts\python.exe'
+            if (Test-Path -LiteralPath $python) { & $python (Join-Path $PSScriptRoot 'kokoro-worker.py') --data-dir $DataDir --check }
             Add-Type -AssemblyName System.Speech
             $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
             try { $synth.GetInstalledVoices() | Where-Object Enabled | ForEach-Object { $_.VoiceInfo.Name } } finally { $synth.Dispose() }
         }
         'Voice' {
+            if ($Value -match '^[ab][fm]_') {
+                $python = Join-Path $DataDir 'kokoro\venv\Scripts\python.exe'
+                if (-not (Test-Path -LiteralPath $python)) { throw 'Install Kokoro first with setup-kokoro.py.' }
+                $available = & $python (Join-Path $PSScriptRoot 'kokoro-worker.py') --data-dir $DataDir --check | ConvertFrom-Json
+                if ($LASTEXITCODE -ne 0 -or $Value -notin $available) { throw 'Unknown or unavailable Kokoro voice.' }
+                $settings.kokoroVoice=$Value; $settings.engine='kokoro'; Write-JsonFile $configPath $settings; "Kokoro voice set to $Value."; break
+            }
             Add-Type -AssemblyName System.Speech
             $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
             try { $synth.SelectVoice($Value) } finally { $synth.Dispose() }
-            $settings.voice=$Value; Write-JsonFile $configPath $settings; "Voice set to $Value."
+            $settings.voice=$Value; $settings.engine='windows'; Write-JsonFile $configPath $settings; "Windows voice set to $Value."
+        }
+        'Engine' {
+            if ($Value -notin @('windows','kokoro')) { throw 'Engine must be windows or kokoro.' }
+            if ($Value -eq 'kokoro') {
+                $python = Join-Path $DataDir 'kokoro\venv\Scripts\python.exe'
+                if (-not (Test-Path -LiteralPath $python)) { throw 'Install Kokoro first with setup-kokoro.py.' }
+                & $python (Join-Path $PSScriptRoot 'kokoro-worker.py') --data-dir $DataDir --check | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw 'Kokoro installation check failed.' }
+            }
+            $settings.engine=$Value; Write-JsonFile $configPath $settings; "Speech engine set to $Value."
         }
         'Rate' {
             $rateNumber = [int]$Value
