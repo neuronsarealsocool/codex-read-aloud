@@ -38,7 +38,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File plugins/read-aloud/scrip
 
 Alternatively ask Codex to use the installed Read Aloud plugin's `scripts/setup-kokoro.py` with Python 3.12 and select the Kokoro engine. Setup downloads about 142 MB of checksum-verified model/voice files, plus Python packages, into `%LOCALAPPDATA%\CodexReadAloud\kokoro`. It does not bundle these files into the plugin repository. Python must remain installed because the local environment depends on it.
 
-The default Kokoro voice is **af_heart** (American English). Select **bf_emma** for British English using the Kokoro Emma button, or ask for all installed voices. Zira and David buttons switch back to Windows speech. Existing speed, Stop, automatic-reading, and progress controls work with either engine. Kokoro may take several seconds to load and generate the first audio; it uses CPU and speaks in short chunks. On failure it falls back to Windows and records `kokoro-error.txt`. An abrupt process termination may leave a transient error file.
+The default Kokoro voice is **af_heart** (American English). Select **bf_emma** for British English using the Kokoro Emma button, or ask for all installed voices. Windows voice buttons switch back to Windows speech. Existing speed, Stop, automatic-reading, and progress controls work with either engine. Kokoro may take several seconds to load and generate the first audio and speaks in short chunks. On failure it falls back to Windows and records `kokoro-error.txt`. An abrupt process termination may leave a transient error file.
+
+For an NVIDIA GPU, run setup with `--gpu` using Python 3.12:
+
+```powershell
+python plugins/read-aloud/scripts/setup-kokoro.py --gpu
+```
+
+This installs ONNX Runtime GPU 1.24.4 with CUDA 12/cuDNN libraries in the plugin's Python environment and downloads a checksum-verified full-precision model. Allow roughly 2 GB for downloads plus installation space. Playback remains offline. The worker automatically prefers CUDA when installed and falls back to the CPU int8 model if CUDA cannot initialize. `kokoro-runtime.json` records the actual providers and completed chunk timings. Model loading still happens for each speech request; GPU acceleration improves generation but does not eliminate startup time. Re-running setup preserves an existing GPU installation. Windows voices remain available.
+
+Run the venv's Python with `plugins/read-aloud/scripts/benchmark-kokoro.py` for a CPU baseline or add `--provider cuda --model kokoro-v1.0.onnx` for GPU timings without audio playback. The GPU benchmark refuses to report CPU fallback as GPU performance.
 
 Upstream: [Kokoro ONNX](https://github.com/thewh1teagle/kokoro-onnx) (MIT wrapper, Apache-2.0 model weights). Its dependencies have their own licences, including eSpeak NG; they are installed separately by setup.
 
@@ -111,4 +121,6 @@ The controls test covers all 18 buttons using installed Google Chrome via Playwr
 
 After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scripts/test-kokoro.py`. This generates American and British audio while denying Python network connections and checks real muted playback and cancellation with isolated settings. Tests leave their temporary directories for inspection.
 
-Current version: **1.4.0**. Licensed under MIT; see [LICENSE](LICENSE).
+After GPU setup, add `--require-cuda` to that test command to verify both synthesis and playback actually retain CUDA rather than silently using CPU fallback.
+
+Current version: **1.5.0**. Licensed under MIT; see [LICENSE](LICENSE).

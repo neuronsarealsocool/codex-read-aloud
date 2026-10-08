@@ -135,7 +135,16 @@ try {
                         # Failed neural playback falls back to the selected Windows voice.
                     } finally {
                         if ($child) { if (-not $child.HasExited) { $child.Kill(); $child.WaitForExit() }; $child.Dispose() }
-                        if (Test-Path -LiteralPath $errorPath) { Remove-Item -LiteralPath $errorPath }
+                        # Start-Process's stderr writer can outlive a killed child briefly.
+                        # Retry cleanup rather than reporting successful cancellation as failure.
+                        for ($cleanupAttempt=0; $cleanupAttempt -lt 10; $cleanupAttempt++) {
+                            try {
+                                if (Test-Path -LiteralPath $errorPath) { Remove-Item -LiteralPath $errorPath }
+                                break
+                            } catch [System.IO.IOException] {
+                                if ($cleanupAttempt -lt 9) { Start-Sleep -Milliseconds 100 }
+                            }
+                        }
                     }
                 }
                 if ($job.windowsVoiceKind -eq 'modern') { Invoke-WindowsModernSpeech $job $event; break }

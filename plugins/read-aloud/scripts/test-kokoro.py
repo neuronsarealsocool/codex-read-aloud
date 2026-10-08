@@ -1,4 +1,5 @@
 """Run with the installed Kokoro venv Python after setup. No audible playback."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,9 @@ import time
 import wave
 
 scripts = Path(__file__).parent
+parser = argparse.ArgumentParser()
+parser.add_argument('--require-cuda', action='store_true')
+args = parser.parse_args()
 data = Path(os.environ["LOCALAPPDATA"]) / "CodexReadAloud"
 test = Path(tempfile.mkdtemp(prefix="CodexKokoroTest-"))
 
@@ -26,6 +30,8 @@ for voice in ("af_heart", "bf_emma"):
     output = test / f"{voice}.wav"
     sys.argv = ["kokoro-worker.py", "--data-dir", str(data), "--request", str(request), "--output", str(output)]
     runpy.run_path(str(scripts / "kokoro-worker.py"), run_name="__main__")
+    if args.require_cuda:
+        assert 'CUDAExecutionProvider' in json.loads((data / 'kokoro-runtime.json').read_text())['providers'], 'GPU test fell back to CPU'
     with wave.open(str(output), "rb") as fp:
         assert fp.getframerate() == 24000
         assert fp.getnframes() > 24000
@@ -74,6 +80,8 @@ try:
     else:
         raise AssertionError("Natural Kokoro completion timed out")
     assert not (test / "kokoro-error.txt").exists(), "Completed Kokoro fell back to Windows"
+    if args.require_cuda:
+        assert 'CUDAExecutionProvider' in json.loads((test / 'kokoro-runtime.json').read_text())['providers'], 'Playback fell back to CPU'
 finally:
     subprocess.run(reader + ["-Mode", "Stop", "-DataDir", str(test)], capture_output=True)
 print("PASS: American and British synthesis with network connections denied, nonempty audio, prompt completion hook, real Kokoro playback and cancellation without Windows fallback.")
