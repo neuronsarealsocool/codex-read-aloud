@@ -1,0 +1,58 @@
+<div id="codex-read-aloud-controls">
+  <div class="viz-controls" role="group" aria-label="Read Aloud playback controls">
+    <button class="btn btn-primary" type="button" data-action="read"><i data-lucide="volume-2" aria-hidden="true"></i> Read answer</button>
+    <button class="btn" type="button" data-action="stop"><i data-lucide="square" aria-hidden="true"></i> Stop</button>
+    <button class="btn" type="button" data-action="on">Auto on</button>
+    <button class="btn" type="button" data-action="off">Auto off</button>
+    <button class="btn" type="button" data-action="slower">Slower</button>
+    <button class="btn" type="button" data-action="normal">Normal speed</button>
+    <button class="btn" type="button" data-action="faster">Faster</button>
+    <button class="btn" type="button" data-action="zira">Zira voice</button>
+    <button class="btn" type="button" data-action="david">David voice</button>
+    <button class="btn" type="button" data-action="voices">Voices</button>
+    <button class="btn" type="button" data-action="status">Status</button>
+    <button class="btn" type="button" data-action="progress-on">Progress on</button>
+    <button class="btn" type="button" data-action="progress-off">Progress off</button>
+  </div>
+  <p class="text-small text-muted" aria-live="polite" data-feedback>Buttons send a command to this chat.</p>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('codex-read-aloud-controls');
+  const feedback = root.querySelector('[data-feedback]');
+  const buttons = Array.from(root.querySelectorAll('button[data-action]'));
+  const prompts = {
+    read: 'Use the Read Aloud plugin to speak the answer directly above the Read Aloud controls I clicked. Omit the controls themselves.',
+    stop: 'Use the Read Aloud plugin to stop current and queued speech.',
+    on: 'Use the Read Aloud plugin to turn automatic answer reading on.',
+    off: 'Use the Read Aloud plugin to turn automatic answer reading off.',
+    slower: 'Use the Read Aloud plugin to decrease reading speed by one step.',
+    normal: 'Use the Read Aloud plugin to reset reading speed to normal.',
+    faster: 'Use the Read Aloud plugin to increase reading speed by one step.',
+    zira: 'Use the Read Aloud plugin to select Microsoft Zira Desktop as the reading voice.',
+    david: 'Use the Read Aloud plugin to select Microsoft David Desktop as the reading voice.',
+    voices: 'Use the Read Aloud plugin to list available reading voices.',
+    status: 'Use the Read Aloud plugin to show automatic reading, progress narration, the selected voice, and speed.',
+    'progress-on': 'Use the Read Aloud plugin to enable spoken narration of visible progress updates while working.',
+    'progress-off': 'Use the Read Aloud plugin to disable spoken progress narration while keeping final-answer reading enabled.'
+  };
+  for (const button of buttons) {
+    button.addEventListener('click', async () => {
+      if (typeof window.openai?.sendFollowUpMessage !== 'function') {
+        feedback.textContent = 'This app cannot send commands from these controls. Type the command in the chat.';
+        return;
+      }
+      buttons.forEach(item => { item.disabled = true; });
+      feedback.textContent = 'Sending ' + button.textContent.trim() + '...';
+      try {
+        await window.openai.sendFollowUpMessage({prompt: prompts[button.dataset.action], title: button.textContent.trim()});
+        feedback.textContent = 'Command sent to the chat.';
+      } catch (error) {
+        feedback.textContent = 'Command was not sent. Try again or type it in the chat.';
+      } finally {
+        buttons.forEach(item => { item.disabled = false; });
+      }
+    });
+  }
+})();
+</script>

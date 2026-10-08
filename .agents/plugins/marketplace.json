@@ -1,0 +1,12 @@
+{
+  "name": "codex-read-aloud",
+  "interface": { "displayName": "Codex Read Aloud" },
+  "plugins": [
+    {
+      "name": "read-aloud",
+      "source": { "source": "local", "path": "./plugins/read-aloud" },
+      "category": "Productivity",
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }
+    }
+  ]
+}

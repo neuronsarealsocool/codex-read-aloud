@@ -1,0 +1,32 @@
+{
+  "description": "Speak the latest completed answer locally. No network requests.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/scripts/reader.ps1\" -Mode Controls",
+            "commandWindows": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"$env:PLUGIN_ROOT/scripts/reader.ps1\" -Mode Controls",
+            "timeout": 10,
+            "additionalContextLimit": 1500,
+            "statusMessage": "Loading Read Aloud buttons"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}/scripts/reader.ps1\" -Mode Hook",
+            "commandWindows": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"$env:PLUGIN_ROOT/scripts/reader.ps1\" -Mode Hook",
+            "timeout": 10,
+            "statusMessage": "Preparing spoken answer"
+          }
+        ]
+      }
+    ]
+  }
+}

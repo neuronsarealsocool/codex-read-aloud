@@ -1,0 +1,10 @@
+{
+  "name": "codex-read-aloud-tests",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "test": "node plugins/read-aloud/scripts/test-controls.cjs",
+    "test:speech": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File plugins/read-aloud/scripts/test-reader.ps1"
+  },
+  "devDependencies": { "playwright": "1.62.1" }
+}
