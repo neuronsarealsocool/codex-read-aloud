@@ -7,6 +7,7 @@ param(
     [string]$DataDir = (Join-Path $env:LOCALAPPDATA 'CodexReadAloud')
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'windows-voices.ps1')
 $configPath = Join-Path $DataDir 'settings.json'
 $latestPath = Join-Path $DataDir 'latest.json'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -28,9 +29,10 @@ function Get-Settings {
         if (-not $loaded.PSObject.Properties['narrateProgress']) { $loaded | Add-Member -NotePropertyName narrateProgress -NotePropertyValue $true }
         if (-not $loaded.PSObject.Properties['engine']) { $loaded | Add-Member -NotePropertyName engine -NotePropertyValue 'windows' }
         if (-not $loaded.PSObject.Properties['kokoroVoice']) { $loaded | Add-Member -NotePropertyName kokoroVoice -NotePropertyValue 'af_heart' }
+        if (-not $loaded.PSObject.Properties['windowsVoiceKind']) { $loaded | Add-Member -NotePropertyName windowsVoiceKind -NotePropertyValue 'desktop' }
         return $loaded
     }
-    return [pscustomobject]@{enabled=$true; voice='Microsoft Zira Desktop'; rate=0; volume=100; skipCode=$true; maxCharacters=20000; narrateProgress=$true; engine='windows'; kokoroVoice='af_heart'}
+    return [pscustomobject]@{enabled=$true; voice='Microsoft Zira Desktop'; rate=0; volume=100; skipCode=$true; maxCharacters=20000; narrateProgress=$true; engine='windows'; kokoroVoice='af_heart'; windowsVoiceKind='desktop'}
 }
 function Get-SpokenText([string]$InputText, $Settings) {
     $result = $InputText
@@ -63,7 +65,7 @@ function Write-State([string]$State, [string]$Id = '') {
 function Queue-Speech([string]$SpeechText, $Settings, [string]$Id) {
     $requestId = [guid]::NewGuid().ToString('N')
     $requestPath = Join-Path $DataDir ($requestId + '.json')
-    Write-JsonFile $requestPath @{id=$requestId; text=$SpeechText; voice=$Settings.voice; rate=$Settings.rate; volume=$Settings.volume; engine=$Settings.engine; kokoroVoice=$Settings.kokoroVoice}
+    Write-JsonFile $requestPath @{id=$requestId; text=$SpeechText; voice=$Settings.voice; rate=$Settings.rate; volume=$Settings.volume; engine=$Settings.engine; kokoroVoice=$Settings.kokoroVoice; windowsVoiceKind=$Settings.windowsVoiceKind}
     Write-JsonFile $latestPath @{id=$requestId; turn=$Id}
     Signal-Stop
     $exe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -136,6 +138,7 @@ try {
                         if (Test-Path -LiteralPath $errorPath) { Remove-Item -LiteralPath $errorPath }
                     }
                 }
+                if ($job.windowsVoiceKind -eq 'modern') { Invoke-WindowsModernSpeech $job $event; break }
                 Add-Type -AssemblyName System.Speech
                 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
                 if ($job.voice) { $synth.SelectVoice($job.voice) }
@@ -173,6 +176,7 @@ try {
             "Settings: $configPath"
         }
         'Voices' {
+            Get-WindowsModernVoices | ForEach-Object DisplayName
             $python = Join-Path $DataDir 'kokoro\venv\Scripts\python.exe'
             if (Test-Path -LiteralPath $python) { & $python (Join-Path $PSScriptRoot 'kokoro-worker.py') --data-dir $DataDir --check }
             Add-Type -AssemblyName System.Speech
@@ -187,9 +191,14 @@ try {
                 if ($LASTEXITCODE -ne 0 -or $Value -notin $available) { throw 'Unknown or unavailable Kokoro voice.' }
                 $settings.kokoroVoice=$Value; $settings.engine='kokoro'; Write-JsonFile $configPath $settings; "Kokoro voice set to $Value."; break
             }
-            Add-Type -AssemblyName System.Speech
-            $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-            try { $synth.SelectVoice($Value) } finally { $synth.Dispose() }
+            $modernVoice = Get-WindowsModernVoices | Where-Object DisplayName -eq $Value | Select-Object -First 1
+            if ($modernVoice) { $settings.windowsVoiceKind='modern' }
+            else {
+                Add-Type -AssemblyName System.Speech
+                $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+                try { $synth.SelectVoice($Value) } finally { $synth.Dispose() }
+                $settings.windowsVoiceKind='desktop'
+            }
             $settings.voice=$Value; $settings.engine='windows'; Write-JsonFile $configPath $settings; "Windows voice set to $Value."
         }
         'Engine' {

@@ -11,6 +11,8 @@ Commands:
 - `-Mode Status`: inspect settings and last recorded playback state.
 - `-Mode Voices`: list installed voices.
 - `-Mode Voice -Value 'Microsoft Zira Desktop'`: select an exact installed voice name.
+- `-Mode Voice -Value 'Microsoft George'` / `'Microsoft Susan'`: select installed British voices using the modern Windows speech API.
+- `-Mode Voice -Value 'Microsoft Hazel Desktop'`: select the British Hazel voice through the classic Windows engine. Voice selection preserves automatic-reading on/off. Modern voices also include Catherine, James, and Mark when installed; list exact names with Voices. These are legacy Windows voices exposed through WinRT, not Narrator's separately packaged natural voices. Missing voices produce an error instead of silently choosing another voice.
 - `-Mode Engine -Value kokoro` / `-Mode Engine -Value windows`: select the installed offline engine.
 - `-Mode Voice -Value af_heart` or `bf_emma`: select Kokoro American Heart or British Emma and switch to Kokoro. Selecting a Windows voice switches back to Windows.
 

@@ -21,6 +21,12 @@ If `codex` is not found, install or expose the Codex CLI on PATH first. Plugin s
 
 ## Features
 
+### Additional Windows voices (1.4)
+
+George, Hazel, and Susan now have selection buttons. The modern Windows speech API also exposes installed voices such as Australian Catherine and James and American Mark, without changing the registry. Ask for all voices and select an exact listed name. George and Susan use this modern API; the Hazel button uses its classic desktop voice. Voice selection switches to the Windows engine and preserves your automatic-reading setting.
+
+These are fast legacy Windows voices. Narrator's separately packaged natural voices are not supported by this integration. On machines without the British voice pack, those buttons report the missing voice; they do not download it automatically. Speech uses memory streams and remains offline. Stop can cancel both synthesis and playback.
+
 ### Optional Kokoro neural voices (1.3)
 
 Kokoro runs completely offline after one-time setup. Install Python 3.12 and, from a clone of this repository, run:
@@ -101,8 +107,8 @@ npm test
 npm run test:speech
 ```
 
-The controls test covers all 15 buttons using installed Google Chrome via Playwright and a mocked Codex host bridge. The Windows speech test uses a separate temporary data directory, volume zero, and checks cleanup, completion, deduplication, stopping, settings, speed, and progress narration.
+The controls test covers all 18 buttons using installed Google Chrome via Playwright and a mocked Codex host bridge. The Windows speech test uses a separate temporary data directory, volume zero, and checks cleanup, completion, deduplication, stopping, settings, speed, and progress narration. With the British voices installed, run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File plugins/read-aloud/scripts/test-windows-voices.ps1` to verify modern Windows playback, cancellation, and preservation of the automatic-off setting.
 
 After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scripts/test-kokoro.py`. This generates American and British audio while denying Python network connections and checks real muted playback and cancellation with isolated settings. Tests leave their temporary directories for inspection.
 
-Current version: **1.3.1**. Licensed under MIT; see [LICENSE](LICENSE).
+Current version: **1.4.0**. Licensed under MIT; see [LICENSE](LICENSE).

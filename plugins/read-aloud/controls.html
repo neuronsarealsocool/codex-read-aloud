@@ -15,6 +15,9 @@
     <button class="btn" type="button" data-action="progress-off">Progress off</button>
     <button class="btn" type="button" data-action="heart">Kokoro Heart</button>
     <button class="btn" type="button" data-action="emma">Kokoro Emma</button>
+    <button class="btn" type="button" data-action="george">George voice</button>
+    <button class="btn" type="button" data-action="hazel">Hazel voice</button>
+    <button class="btn" type="button" data-action="susan">Susan voice</button>
   </div>
   <p class="text-small text-muted" aria-live="polite" data-feedback>Buttons send a command to this chat.</p>
 </div>
@@ -38,7 +41,10 @@
     'progress-on': 'Use the Read Aloud plugin to enable spoken narration of visible progress updates while working.',
     'progress-off': 'Use the Read Aloud plugin to disable spoken progress narration while keeping final-answer reading enabled.',
     heart: 'Use the Read Aloud plugin to select the Kokoro voice af_heart and engine kokoro.',
-    emma: 'Use the Read Aloud plugin to select the Kokoro British English voice bf_emma and engine kokoro.'
+    emma: 'Use the Read Aloud plugin to select the Kokoro British English voice bf_emma and engine kokoro.',
+    george: 'Use the Read Aloud plugin to select Microsoft George as the Windows reading voice. Keep the current automatic-reading setting.',
+    hazel: 'Use the Read Aloud plugin to select Microsoft Hazel Desktop as the Windows reading voice. Keep the current automatic-reading setting.',
+    susan: 'Use the Read Aloud plugin to select Microsoft Susan as the Windows reading voice. Keep the current automatic-reading setting.'
   };
   for (const button of buttons) {
     button.addEventListener('click', async () => {

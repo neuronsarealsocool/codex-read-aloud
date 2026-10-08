@@ -1,6 +1,6 @@
 {
   "name": "read-aloud",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Read Codex answers and visible progress aloud using offline Windows or Kokoro voices.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
