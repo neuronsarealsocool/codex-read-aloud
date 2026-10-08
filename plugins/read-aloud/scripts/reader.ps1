@@ -117,6 +117,8 @@ try {
                         Write-State 'generating' $job.id
                         $childArgs = '"' + $worker + '" --data-dir "' + $DataDir + '" --request "' + $Request + '"'
                         $child = Start-Process -FilePath $python -ArgumentList $childArgs -WindowStyle Hidden -PassThru -RedirectStandardError $errorPath
+                        # Retain the handle before exit so ExitCode remains available.
+                        [void]$child.Handle
                         while (-not $child.HasExited) {
                             $cancelled = $event.WaitOne(100)
                             $current = Get-Content -LiteralPath $latestPath -Raw -Encoding UTF8 | ConvertFrom-Json

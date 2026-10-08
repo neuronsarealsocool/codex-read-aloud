@@ -105,4 +105,4 @@ The controls test covers all 15 buttons using installed Google Chrome via Playwr
 
 After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scripts/test-kokoro.py`. This generates American and British audio while denying Python network connections and checks real muted playback and cancellation with isolated settings. Tests leave their temporary directories for inspection.
 
-Current version: **1.3.0**. Licensed under MIT; see [LICENSE](LICENSE).
+Current version: **1.3.1**. Licensed under MIT; see [LICENSE](LICENSE).

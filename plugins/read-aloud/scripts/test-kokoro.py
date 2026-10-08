@@ -61,6 +61,19 @@ try:
         raise AssertionError("Stop did not cancel Kokoro promptly")
     assert not (test / "kokoro-error.txt").exists(), "Kokoro fell back to Windows"
     assert not (test / "last-error.txt").exists(), "Worker failed"
+    # Also test natural completion, which follows a different supervisor path.
+    subprocess.run(reader + ["-Mode", "Test", "-Text", "Two.", "-DataDir", str(test)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if not list(test.glob("*.stderr")) and not list(test.glob("*.json")):
+            break
+        queued = [p for p in test.glob("*.json") if len(p.stem) == 32]
+        if not queued:
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("Natural Kokoro completion timed out")
+    assert not (test / "kokoro-error.txt").exists(), "Completed Kokoro fell back to Windows"
 finally:
     subprocess.run(reader + ["-Mode", "Stop", "-DataDir", str(test)], capture_output=True)
 print("PASS: American and British synthesis with network connections denied, nonempty audio, prompt completion hook, real Kokoro playback and cancellation without Windows fallback.")
