@@ -5,7 +5,9 @@ import json
 import os
 from pathlib import Path
 import re
+import queue
 import sys
+import threading
 import time
 import wave
 
@@ -66,6 +68,64 @@ def chunks(text):
         if current:
             yield current
 
+def play_buffered(audio_chunks, on_start):
+    """Generate ahead on one thread and keep one audio stream open for the job."""
+    import sounddevice as sd
+    pending = queue.Queue(maxsize=2)
+    cancelled = threading.Event()
+
+    def send(kind, value):
+        while not cancelled.is_set():
+            try:
+                pending.put((kind, value), timeout=0.1)
+                return
+            except queue.Full:
+                pass
+
+    def produce():
+        try:
+            for audio, rate in audio_chunks:
+                if cancelled.is_set():
+                    return
+                send('audio', (audio, rate))
+            send('end', None)
+        except Exception as error:
+            send('error', error)
+
+    producer = threading.Thread(target=produce, name='kokoro-prefetch', daemon=True)
+    producer.start()
+    stream = None
+    writes = []
+    underruns = 0
+    try:
+        while True:
+            kind, value = pending.get()
+            if kind == 'error':
+                raise value
+            if kind == 'end':
+                break
+            audio, rate = value
+            if stream is None:
+                stream = sd.OutputStream(samplerate=rate, channels=1, dtype='float32', blocksize=1024, latency='high')
+                stream.start()
+                on_start()
+            elif rate != stream.samplerate:
+                raise RuntimeError('Kokoro changed its sample rate during playback')
+            started = time.perf_counter()
+            underflowed = stream.write(audio)
+            # Starting an empty device can flag the initial write; count later gaps.
+            if writes and underflowed:
+                underruns += 1
+            writes.append({'started': started, 'finished': time.perf_counter()})
+        if stream is not None:
+            stream.stop()  # Drain the final buffered samples before the worker exits.
+        return {'writes': writes, 'underruns': underruns}
+    finally:
+        cancelled.set()
+        if stream is not None:
+            stream.close()
+        producer.join(timeout=1)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True, type=Path)
@@ -89,28 +149,30 @@ def main():
     lang = "en-gb" if voice.startswith("b") else "en-us"
     speed = max(0.5, min(2.0, 1.0 + int(job.get("rate", 0)) * 0.1))
     volume = max(0, min(100, int(job.get("volume", 100)))) / 100
-    rendered = []
     timings = []
-    for text in chunks(job["text"]):
-        write_state(args.data_dir, "generating", job["id"])
-        started = time.perf_counter()
-        audio, rate = kokoro.create(text, voice=voice, speed=speed, lang=lang)
-        timings.append({"generationSeconds": round(time.perf_counter() - started, 3), "audioSeconds": round(len(audio) / rate, 3)})
-        audio = np.asarray(audio, dtype=np.float32) * volume
-        if args.output:
-            rendered.append(audio)
-        else:
-            import sounddevice as sd
-            write_state(args.data_dir, "speaking", job["id"])
-            sd.play(audio, rate, blocking=True)
+    write_state(args.data_dir, "generating", job["id"])
+    def synthesize():
+        for text in chunks(job["text"]):
+            started = time.perf_counter()
+            audio, rate = kokoro.create(text, voice=voice, speed=speed, lang=lang)
+            finished = time.perf_counter()
+            timings.append({"generationSeconds": round(finished - started, 3), "audioSeconds": round(len(audio) / rate, 3), "started": started, "finished": finished})
+            yield np.asarray(audio, dtype=np.float32) * volume, rate
+
+    playback = None
     if args.output:
+        rendered = []
+        for audio, rate in synthesize():
+            rendered.append(audio)
         audio = np.concatenate(rendered)
         with wave.open(str(args.output), "wb") as fp:
             fp.setnchannels(1)
             fp.setsampwidth(2)
             fp.setframerate(rate)
             fp.writeframes((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
-    (args.data_dir / "kokoro-runtime.json").write_text(json.dumps({"providers": session.get_providers(), "chunks": timings}), encoding="utf-8")
+    else:
+        playback = play_buffered(synthesize(), lambda: write_state(args.data_dir, "speaking", job["id"]))
+    (args.data_dir / "kokoro-runtime.json").write_text(json.dumps({"providers": session.get_providers(), "chunks": timings, "playback": playback}), encoding="utf-8")
 
 if __name__ == "__main__":
     try:

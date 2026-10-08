@@ -38,7 +38,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File plugins/read-aloud/scrip
 
 Alternatively ask Codex to use the installed Read Aloud plugin's `scripts/setup-kokoro.py` with Python 3.12 and select the Kokoro engine. Setup downloads about 142 MB of checksum-verified model/voice files, plus Python packages, into `%LOCALAPPDATA%\CodexReadAloud\kokoro`. It does not bundle these files into the plugin repository. Python must remain installed because the local environment depends on it.
 
-The default Kokoro voice is **af_heart** (American English). Select **bf_emma** for British English using the Kokoro Emma button, or ask for all installed voices. Windows voice buttons switch back to Windows speech. Existing speed, Stop, automatic-reading, and progress controls work with either engine. Kokoro may take several seconds to load and generate the first audio and speaks in short chunks. On failure it falls back to Windows and records `kokoro-error.txt`. An abrupt process termination may leave a transient error file.
+The default Kokoro voice is **af_heart** (American English). Select **bf_emma** for British English using the Kokoro Emma button, or ask for all installed voices. Windows voice buttons switch back to Windows speech. Existing speed, Stop, automatic-reading, and progress controls work with either engine. Kokoro may take several seconds to load and generate the first audio. It generates subsequent chunks during playback, buffering up to two ahead and using one continuous audio stream rather than restarting the device between sentences. If synthesis cannot keep up with playback, pauses can still occur. On failure it falls back to Windows and records `kokoro-error.txt`. An abrupt process termination may leave a transient error file.
 
 For an NVIDIA GPU, run setup with `--gpu` using Python 3.12:
 
@@ -123,4 +123,4 @@ After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scrip
 
 After GPU setup, add `--require-cuda` to that test command to verify both synthesis and playback actually retain CUDA rather than silently using CPU fallback.
 
-Current version: **1.5.0**. Licensed under MIT; see [LICENSE](LICENSE).
+Current version: **1.5.1**. Licensed under MIT; see [LICENSE](LICENSE).

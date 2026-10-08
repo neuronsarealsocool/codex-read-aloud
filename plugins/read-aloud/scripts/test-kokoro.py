@@ -24,6 +24,16 @@ def blocked(*args, **kwargs):
 # Generate actual speech while denying Python socket connections.
 socket.socket.connect = blocked
 socket.create_connection = blocked
+# A failed producer must propagate its error rather than leave playback waiting.
+worker = runpy.run_path(str(scripts / 'kokoro-worker.py'))
+def failed_synthesis():
+    raise RuntimeError('test synthesis failure')
+    yield
+try:
+    worker['play_buffered'](failed_synthesis(), lambda: None)
+    raise AssertionError('Producer failure was ignored')
+except RuntimeError as error:
+    assert str(error) == 'test synthesis failure'
 for voice in ("af_heart", "bf_emma"):
     request = test / "request.json"
     request.write_text(json.dumps({"id": "offline-test", "text": "Two plus two is four. Kokoro speech runs entirely on this computer.", "kokoroVoice": voice, "volume": 100, "rate": 0}), encoding="utf-8")
@@ -68,8 +78,9 @@ try:
     assert not (test / "kokoro-error.txt").exists(), "Kokoro fell back to Windows"
     assert not (test / "last-error.txt").exists(), "Worker failed"
     # Also test natural completion, which follows a different supervisor path.
-    subprocess.run(reader + ["-Mode", "Test", "-Text", "Two.", "-DataDir", str(test)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    deadline = time.monotonic() + 30
+    paragraph = "Chevrolet is an American car brand founded in 1911 by racing driver Louis Chevrolet and businessman William Durant. Three plus three is six. Four plus four is eight."
+    subprocess.run(reader + ["-Mode", "Test", "-Text", paragraph, "-DataDir", str(test)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
         if not list(test.glob("*.stderr")) and not list(test.glob("*.json")):
             break
@@ -81,8 +92,12 @@ try:
         raise AssertionError("Natural Kokoro completion timed out")
     assert not (test / "kokoro-error.txt").exists(), "Completed Kokoro fell back to Windows"
     if args.require_cuda:
-        assert 'CUDAExecutionProvider' in json.loads((test / 'kokoro-runtime.json').read_text())['providers'], 'Playback fell back to CPU'
+        runtime = json.loads((test / 'kokoro-runtime.json').read_text())
+        assert 'CUDAExecutionProvider' in runtime['providers'], 'Playback fell back to CPU'
+        assert len(runtime['chunks']) == 3 and len(runtime['playback']['writes']) == 3, 'Playback lost or duplicated a sentence'
+        assert runtime['chunks'][1]['finished'] < runtime['playback']['writes'][0]['finished'], 'Second sentence was not generated during first-sentence playback'
+        assert runtime['playback']['underruns'] == 0, 'Audio stream ran out of buffered samples between sentences'
 finally:
     subprocess.run(reader + ["-Mode", "Stop", "-DataDir", str(test)], capture_output=True)
-print("PASS: American and British synthesis with network connections denied, nonempty audio, prompt completion hook, real Kokoro playback and cancellation without Windows fallback.")
+print("PASS: offline American/British synthesis, producer error propagation, buffered multi-sentence playback, completion and cancellation without Windows fallback.")
 print(f"Test data: {test}")
