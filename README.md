@@ -123,4 +123,4 @@ After Kokoro setup, run its installed venv Python with `plugins/read-aloud/scrip
 
 After GPU setup, add `--require-cuda` to that test command to verify both synthesis and playback actually retain CUDA rather than silently using CPU fallback.
 
-Current version: **1.5.1**. Licensed under MIT; see [LICENSE](LICENSE).
+Current version: **1.5.2**. Licensed under MIT; see [LICENSE](LICENSE).

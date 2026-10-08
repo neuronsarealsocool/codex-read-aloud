@@ -141,7 +141,7 @@ def main():
     session = create_session(root, args.provider)
     kokoro = Kokoro.from_session(session, str(root / "voices-v1.0.bin"))
     if args.check:
-        print("Execution providers: " + ", ".join(session.get_providers()))
+        print("Execution providers: " + ", ".join(session.get_providers()), file=sys.stderr)
         print(json.dumps(sorted(v for v in kokoro.voices.files if v.startswith(("af_", "am_", "bf_", "bm_")))))
         return
     job = json.loads(args.request.read_text(encoding="utf-8-sig"))

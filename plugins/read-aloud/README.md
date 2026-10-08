@@ -1,4 +1,4 @@
-# Read Aloud 1.5.1
+# Read Aloud 1.5.2
 
 Offline Windows speech for Codex completed answers, with optional visible progress narration and inline controls.
 
